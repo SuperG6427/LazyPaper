@@ -89,5 +89,5 @@ ejecutar_windows.bat #ESP
 run_linux_macos.sh #ENG
 ```
 ```bash
-ejecutar_linux_macos.sh #ENG
+ejecutar_linux_macos.sh #ESP
 ```
