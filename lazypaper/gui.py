@@ -12,8 +12,8 @@ class LazyPaper:
     def __init__(self, root):
         self.root = root
         self.root.title("LazyPaper - Generador de Wallpapers")
-        self.root.geometry("1300x900") # tamaño inicial
-        self.root.minsize(1100, 700) # tamaño minimo
+        self.root.geometry("1500x800") # tamaño inicial
+        self.root.minsize(1200, 700) # tamaño minimo
         
         # Inicializar la lógica
         self.logic = LazyPaperLogic()
@@ -23,6 +23,9 @@ class LazyPaper:
         self.status_var = tk.StringVar(value="Listo")
         self.drag_data = {"x": 0, "y": 0, "item": None}
         self.icon_photo = None  # Para guardar referencia al icono
+        self.resolution_var = tk.StringVar(value="Desktop FHD (1920x1080)")
+        self.image_info = tk.StringVar(value="No hay imagen cargada")
+        self.zoom_info = tk.StringVar(value="Vista previa")
         
         # Configurar icono y fuente
         self.set_window_icon()
@@ -140,9 +143,37 @@ class LazyPaper:
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(0, weight=1)
 
-        # Panel controles
-        controls_frame = ttk.LabelFrame(main_frame, text="Controles", padding="8")
-        controls_frame.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.W, tk.E), padx=(0, 10))
+        # Panel controles - Ahora con scrollbar
+        controls_container = ttk.Frame(main_frame)
+        controls_container.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.W, tk.E), padx=(0, 10))
+        controls_container.columnconfigure(0, weight=1)
+        controls_container.rowconfigure(0, weight=1)
+        
+        # Crear canvas y scrollbar para el panel de controles
+        controls_canvas = tk.Canvas(controls_container, highlightthickness=0)
+        controls_scrollbar = ttk.Scrollbar(controls_container, orient="vertical", command=controls_canvas.yview)
+        controls_scrollable_frame = ttk.Frame(controls_canvas)
+        
+        # Configurar el sistema de scroll
+        controls_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: controls_canvas.configure(scrollregion=controls_canvas.bbox("all"))
+        )
+        
+        controls_canvas.create_window((0, 0), window=controls_scrollable_frame, anchor="nw")
+        controls_canvas.configure(yscrollcommand=controls_scrollbar.set)
+        
+        # Empaquetar canvas y scrollbar
+        controls_canvas.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.W, tk.E))
+        controls_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        # Configurar el frame desplazable para expandirse
+        controls_container.columnconfigure(0, weight=1)
+        controls_container.rowconfigure(0, weight=1)
+        
+        # Ahora el controls_frame va dentro del frame desplazable
+        controls_frame = ttk.LabelFrame(controls_scrollable_frame, text="Controles", padding="8")
+        controls_frame.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.W, tk.E))
         controls_frame.columnconfigure(0, weight=1)
         
         # Añadir esta línea para que los controles se expandan verticalmente
@@ -159,32 +190,38 @@ class LazyPaper:
         ttk.Label(info_frame, textvariable=self.image_info, wraplength=220, justify=tk.LEFT).grid(row=1, column=0, sticky=tk.W)
         ttk.Separator(controls_frame, orient="horizontal").grid(row=2, column=0, sticky=(tk.W, tk.E), pady=6)
 
+        # Boton de acciones 
+        ttk.Button(controls_frame, text="Generar Wallpaper", command=self.generate_wallpaper).grid(row=2, column=0, sticky=(tk.W, tk.E), pady=4)
+        ttk.Button(controls_frame, text="Guardar", command=self.save_wallpaper).grid(row=3, column=0, sticky=(tk.W, tk.E), pady=4)
+        
+        ttk.Separator(controls_frame, orient="horizontal").grid(row=4, column=0, sticky=(tk.W, tk.E), pady=6)
+
         # Opciones de procesamiento
-        ttk.Label(controls_frame, text="Opciones de procesamiento:").grid(row=3, column=0, sticky=tk.W)
+        ttk.Label(controls_frame, text="Opciones de procesamiento:").grid(row=5, column=0, sticky=tk.W)
         self.remove_bg_var = tk.BooleanVar(value=False)
         remove_cb = ttk.Checkbutton(controls_frame, text="Eliminar fondo (rembg)", variable=self.remove_bg_var, command=self.update_options)
-        remove_cb.grid(row=4, column=0, sticky=tk.W, pady=2)
+        remove_cb.grid(row=6, column=0, sticky=tk.W, pady=2)
         if not self.logic.REMBG_AVAILABLE:
             remove_cb.config(state="disabled", text="Eliminar fondo (rembg) — rembg no instalado")
         
         self.add_outline_var = tk.BooleanVar()
         self.outline_check = ttk.Checkbutton(controls_frame, text="Agregar contorno blanco", variable=self.add_outline_var)
-        self.outline_check.grid(row=5, column=0, sticky=tk.W, pady=2)
+        self.outline_check.grid(row=7, column=0, sticky=tk.W, pady=2)
         self.blur_bg_var = tk.BooleanVar()
-        ttk.Checkbutton(controls_frame, text="Fondo con blur", variable=self.blur_bg_var).grid(row=6, column=0, sticky=tk.W, pady=2)
-        ttk.Separator(controls_frame, orient="horizontal").grid(row=7, column=0, sticky=(tk.W, tk.E), pady=6)
+        ttk.Checkbutton(controls_frame, text="Fondo con blur", variable=self.blur_bg_var).grid(row=8, column=0, sticky=tk.W, pady=2)
+        ttk.Separator(controls_frame, orient="horizontal").grid(row=9, column=0, sticky=(tk.W, tk.E), pady=6)
 
         # Resoluciones
-        ttk.Label(controls_frame, text="Resolución:").grid(row=8, column=0, sticky=tk.W)
-        self.resolution_var = tk.StringVar(value="Desktop FHD (1920x1080)")  # Valor que existe
+        ttk.Label(controls_frame, text="Resolución:").grid(row=10, column=0, sticky=tk.W)
+        # Valor que existe
         resolution_combo = ttk.Combobox(controls_frame, textvariable=self.resolution_var, 
-                                       values=list(self.logic.resolutions.keys()), state="readonly")
-        resolution_combo.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=2)
+        values=list(self.logic.resolutions.keys()), state="readonly")
+        resolution_combo.grid(row=11, column=0, sticky=(tk.W, tk.E), pady=2)
         resolution_combo.bind("<<ComboboxSelected>>", self.on_resolution_change)
-        
+
         # Configuracion de Personalizacion
         self.custom_frame = ttk.Frame(controls_frame)
-        self.custom_frame.grid(row=10, column=0, sticky=(tk.W, tk.E), pady=2)
+        self.custom_frame.grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2)
         self.custom_width = tk.StringVar(value="1920")
         self.custom_height = tk.StringVar(value="1080")
         ttk.Label(self.custom_frame, text="Ancho:").grid(row=0, column=0, sticky=tk.W)
@@ -193,12 +230,12 @@ class LazyPaper:
         ttk.Entry(self.custom_frame, textvariable=self.custom_height, width=8).grid(row=0, column=3, padx=2)
         self.custom_frame.grid_remove()
 
-        ttk.Separator(controls_frame, orient="horizontal").grid(row=11, column=0, sticky=(tk.W, tk.E), pady=6)
+        ttk.Separator(controls_frame, orient="horizontal").grid(row=13, column=0, sticky=(tk.W, tk.E), pady=6)
 
         # Color de fondo
-        ttk.Label(controls_frame, text="Color de fondo:").grid(row=12, column=0, sticky=tk.W)
+        ttk.Label(controls_frame, text="Color de fondo:").grid(row=14, column=0, sticky=tk.W)
         color_frame = ttk.Frame(controls_frame)
-        color_frame.grid(row=13, column=0, sticky=(tk.W, tk.E))
+        color_frame.grid(row=15, column=0, sticky=(tk.W, tk.E))
         self.color_option = tk.StringVar(value="auto")
         ttk.Radiobutton(color_frame, text="Automático", variable=self.color_option, value="auto").grid(row=0, column=0, sticky=tk.W)
         ttk.Radiobutton(color_frame, text="Blanco", variable=self.color_option, value="white").grid(row=1, column=0, sticky=tk.W)
@@ -206,19 +243,19 @@ class LazyPaper:
         ttk.Radiobutton(color_frame, text="Personalizado", variable=self.color_option, value="custom").grid(row=3, column=0, sticky=tk.W)
         self.custom_color = "#FFFFFF"
         ttk.Button(color_frame, text="Elegir color", command=self.choose_color).grid(row=4, column=0, sticky=tk.W, pady=4)
-        ttk.Separator(controls_frame, orient="horizontal").grid(row=14, column=0, sticky=(tk.W, tk.E), pady=6)
- 
+        ttk.Separator(controls_frame, orient="horizontal").grid(row=16, column=0, sticky=(tk.W, tk.E), pady=6)
+
         # Posicionamiento y offsets
-        ttk.Label(controls_frame, text="Posición de la imagen:").grid(row=15, column=0, sticky=tk.W)
+        ttk.Label(controls_frame, text="Posición de la imagen:").grid(row=17, column=0, sticky=tk.W)
         pos_frame = ttk.Frame(controls_frame)
-        pos_frame.grid(row=16, column=0, sticky=(tk.W, tk.E), pady=2)
+        pos_frame.grid(row=18, column=0, sticky=(tk.W, tk.E), pady=2)
         ttk.Radiobutton(pos_frame, text="Izquierda", variable=self.logic.position_var, value="left", command=self.update_preview).grid(row=0, column=0, sticky=tk.W)
         ttk.Radiobutton(pos_frame, text="Centro", variable=self.logic.position_var, value="center", command=self.update_preview).grid(row=0, column=1, sticky=tk.W)
         ttk.Radiobutton(pos_frame, text="Derecha", variable=self.logic.position_var, value="right", command=self.update_preview).grid(row=0, column=2, sticky=tk.W)
 
         # Offsets y botones de ajuste
         offset_frame = ttk.Frame(controls_frame)
-        offset_frame.grid(row=17, column=0, sticky=(tk.W, tk.E), pady=4)
+        offset_frame.grid(row=19, column=0, sticky=(tk.W, tk.E), pady=4)
         ttk.Label(offset_frame, text="Offset X:").grid(row=0, column=0, sticky=tk.W)
         ttk.Spinbox(offset_frame, from_=-5000, to=5000, textvariable=self.logic.offset_x_var, width=7, command=self.update_preview).grid(row=0, column=1, padx=4)
         ttk.Label(offset_frame, text="Offset Y:").grid(row=0, column=2, sticky=tk.W, padx=(8,0))
@@ -226,7 +263,7 @@ class LazyPaper:
 
         # Botones para ajustar con flechas
         nudges = ttk.Frame(controls_frame)
-        nudges.grid(row=18, column=0, sticky=(tk.W, tk.E), pady=(4,6))
+        nudges.grid(row=20, column=0, sticky=(tk.W, tk.E), pady=(4,6))
         nudges.columnconfigure([0,1,2], weight=1)
 
         # Creacion de botones
@@ -250,12 +287,20 @@ class LazyPaper:
                    command=lambda: self.nudge(0, 10)).grid(row=2, column=1, padx=2, pady=2)
         ttk.Button(nudges, text="↘", width=3, style="Nudge.TButton", 
                    command=lambda: self.nudge(10, 10)).grid(row=2, column=2, padx=2, pady=2)
-        ttk.Separator(controls_frame, orient="horizontal").grid(row=19, column=0, sticky=(tk.W, tk.E), pady=6)
 
-        # Acciones de Guardado / Generacion
-        ttk.Button(controls_frame, text="Generar Wallpaper", command=self.generate_wallpaper).grid(row=20, column=0, sticky=(tk.W, tk.E), pady=4)
-        ttk.Button(controls_frame, text="Guardar", command=self.save_wallpaper).grid(row=21, column=0, sticky=(tk.W, tk.E), pady=4)
-
+        # Configurar el evento de redimensionamiento para ajustar el canvas
+        def configure_canvas(event):
+            controls_canvas.configure(scrollregion=controls_canvas.bbox("all"))
+            # Ajustar el ancho del frame interno al ancho del canvas
+            controls_canvas.itemconfig(1, width=event.width)
+        
+        controls_canvas.bind("<Configure>", configure_canvas)
+        
+        # Permitir scroll con rueda del mouse
+        def _on_mousewheel(event):
+            controls_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        controls_canvas.bind("<MouseWheel>", _on_mousewheel)
         # Panel de preview
         preview_frame = ttk.LabelFrame(main_frame, text="Vista Previa", padding="8")
         preview_frame.grid(row=0, column=1, sticky=(tk.N, tk.S, tk.E, tk.W))
