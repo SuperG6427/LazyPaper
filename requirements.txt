@@ -1,0 +1,20 @@
+# LazyPaper - System Requirements
+# Python >= 3.8 required (3.11+ recommended)
+# Install dependencies: pip install -r requirements.txt
+
+# Core dependencies
+Pillow>=10.0.0
+numpy>=1.24.0
+tkinter  # Usually included with Python, listed for documentation
+# Optional dependencies (will be installed by default)
+ttkthemes>=3.2.2
+# AI Background removal (optional but recommended)
+rembg>=2.0.50
+onnxruntime>=1.15.0
+# Platform-specific notes:
+# Linux: sudo apt-get install python3-tk python3-pil.imagetk libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1
+# macOS: brew install python-tk
+# Windows: Usually comes with Python installation
+# GPU acceleration (optional, for NVIDIA GPUs only):
+# pip install onnxruntime-gpu>=1.15.0
+# Note: Requires NVIDIA drivers and CUDA toolkit installed
