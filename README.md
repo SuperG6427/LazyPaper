@@ -66,7 +66,7 @@ cd LazyPaper
 ```bash
 pip install -r requirements.txt
 ```
-3. Run with launcher (auto-detects OS) / Ejecutar con Launcher (auto-detecta SO)
+3. Run with launcher from Python (auto-detects OS) / Ejecutar con Launcher de Python (auto-detecta SO)
 - English:  
 ```bash
 python lazypaper_launcher.py
@@ -75,4 +75,19 @@ python lazypaper_launcher.py
 ```bash
 python lazypaper_launcher_esp.py
 ```
-
+5. (Optional) Run with launcher of terminal of your OS / (Opcional) Ejecutar con Launcher de terminal de tu SO
+### NOTE: Requires administrator or root permissions / Requiere permisos de administrador o Root
+- Windows:  
+```bash
+run_windows.bat #ENG
+```
+```bash
+ejecutar_windows.bat #ESP
+```
+- MacOS/Linux:  
+```bash
+run_linux_macos.sh #ENG
+```
+```bash
+ejecutar_linux_macos.sh #ENG
+```
