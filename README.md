@@ -18,6 +18,7 @@ Convierte tus imágenes en **fondos de pantalla personalizados** de manera autom
 ###  Core Dependencies / Dependencias Principales
 - [Pillow](https://pillow.readthedocs.io/en/stable/) `>=10.0.0`
 - [NumPy](https://numpy.org/) `>=1.24.0`
+- [PyInstaller](https://pyinstaller.org/en/stable/) `>=6.16.0`
 - `tkinter` (usually included with Python / Usualmente viene con Python)  
 - [ttkthemes](https://github.com/RedFantom/ttkthemes) `>=3.2.2`  
 
