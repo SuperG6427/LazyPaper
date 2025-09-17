@@ -5,9 +5,10 @@
 # Core dependencies
 Pillow>=10.0.0
 numpy>=1.24.0
-#tkinter >= Usually included with Python, listed for documentation
+pyinstaller>=6.16.0
+#tkinter  # Usually included with Python, listed for documentation
 # Optional dependencies (will be installed by default)
-ttkthemes>=3.2.2
+ttkthemes>=3.2.0
 # AI Background removal (optional but recommended)
 rembg>=2.0.50
 onnxruntime>=1.15.0
