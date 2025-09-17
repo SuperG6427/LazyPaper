@@ -11,8 +11,10 @@ import numpy as np
 # Importar rembg opcionalmente
 try:
     from rembg import remove as rembg_remove
+    from rembg.session_factory import new_session
     REMBG_AVAILABLE = True
-except Exception:
+except Exception as e:
+    print(f"rembg no disponible: {e}")
     REMBG_AVAILABLE = False
 
 class LazyPaperLogic:
@@ -21,6 +23,8 @@ class LazyPaperLogic:
         self.original_image: Optional[Image.Image] = None
         self.processed_image: Optional[Image.Image] = None
         self.current_image_path: Optional[str] = None
+        self._remove_bg_cache = None
+        self._dominant_color_cache = None
         
         # Variables de estado para la interfaz
         self.image_info = tk.StringVar(value="No hay imagen cargada")
@@ -77,16 +81,46 @@ class LazyPaperLogic:
         return (most_common_count / len(border_colors)) > 0.8
 
     # ---------- METHOD Background removal ----------
+        
     def remove_background(self, image: Image.Image) -> Optional[Image.Image]:
         if not self.REMBG_AVAILABLE:
             return None
+        
+        # Verificar cache
+        image_hash = hash(image.tobytes())
+        if self._remove_bg_cache and self._remove_bg_cache[0] == image_hash:
+            return self._remove_bg_cache[1].copy()
+            
         try:
-            # Convertir a bytes
-            buf = io.BytesIO()
-            image.save(buf, format='PNG')
-            data = buf.getvalue()
-            res = rembg_remove(data)
-            return Image.open(io.BytesIO(res)).convert('RGBA')
+            # Optimizar: reducir tamaño para rembg si la imagen es muy grande
+            if image.width * image.height > 2000 * 2000:
+                # Crear una versión más pequeña para procesamiento
+                temp_img = image.copy()
+                temp_img.thumbnail((1500, 1500), Image.LANCZOS)
+                
+                # Convertir a bytes
+                buf = io.BytesIO()
+                temp_img.save(buf, format='PNG')
+                data = buf.getvalue()
+                
+                # Procesar
+                res = rembg_remove(data)
+                result = Image.open(io.BytesIO(res)).convert('RGBA')
+                
+                # Escalar de vuelta al tamaño original
+                result = result.resize(image.size, Image.LANCZOS)
+            else:
+                # Procesar imagen normal
+                buf = io.BytesIO()
+                image.save(buf, format='PNG')
+                data = buf.getvalue()
+                res = rembg_remove(data)
+                result = Image.open(io.BytesIO(res)).convert('RGBA')
+            
+            # Actualizar cache
+            self._remove_bg_cache = (image_hash, result.copy())
+            return result
+            
         except Exception as e:
             print(f"No se pudo eliminar el fondo: {str(e)}")
             return None
@@ -129,17 +163,72 @@ class LazyPaperLogic:
         y = (target_h - new_height)//2
         result.paste(bg, (x,y))
         return result
-
+            
     def get_dominant_color(self, image: Image.Image) -> Tuple[int, int, int]:
-        """Usando muestreo para mejor rendimiento"""
-        img = image.copy()
-        img.thumbnail((100, 100))
-        img_rgb = image.convert('RGB')
-        arr = np.array(img_rgb)
-        pixels = arr.reshape(-1, 3)
-        unique_colors, counts = np.unique(pixels, axis=0, return_counts=True)
-        dominant_idx = np.argmax(counts)
-        return tuple(unique_colors[dominant_idx])
+        """Método mejorado para obtener color dominante"""
+        # Verificar cache
+        image_hash = hash(image.tobytes())
+        if self._dominant_color_cache and self._dominant_color_cache[0] == image_hash:
+            return self._dominant_color_cache[1]
+        
+        try:
+            # Reducir tamaño para análisis
+            img = image.copy()
+            img.thumbnail((100, 100), Image.LANCZOS)
+            
+            # Convertir a numpy array
+            arr = np.array(img)
+            
+            # Si la imagen tiene transparencia, usar solo píxeles no transparentes
+            if arr.shape[2] == 4:
+                # Crear máscara para píxeles no transparentes
+                alpha = arr[:,:,3] > 10  # Umbral para considerar no transparente
+                if np.any(alpha):
+                    pixels = arr[alpha][:,:3]
+                else:
+                    # Si toda la imagen es transparente, usar blanco
+                    return (255, 255, 255)
+            else:
+                # Para imágenes sin transparencia, usar todos los píxeles
+                pixels = arr.reshape(-1, 3)
+            
+            if len(pixels) == 0:
+                return (255, 255, 255)
+            
+            try:
+                # Obtener colores de los bordes
+                border_pixels = []
+                border_pixels.extend(arr[0, :, :3])  # Borde superior
+                border_pixels.extend(arr[-1, :, :3])  # Borde inferior
+                border_pixels.extend(arr[:, 0, :3])  # Borde izquierdo
+                border_pixels.extend(arr[:, -1, :3])  # Borde derecho
+                
+                if len(border_pixels) > 0:
+                    border_pixels = np.array(border_pixels)
+                    # Usar el color más común en los bordes
+                    border_colors = [tuple(color) for color in border_pixels]
+                    color_counts = Counter(border_colors)
+                    if color_counts:
+                        most_common_border = color_counts.most_common(1)[0][0]
+                        # Verificar si este color es predominante en los bordes
+                        if color_counts.most_common(1)[0][1] > len(border_pixels) * 0.3:
+                            result = tuple(int(c) for c in most_common_border)
+                            self._dominant_color_cache = (image_hash, result)
+                            return result
+            except:
+                pass
+            
+            # Si el método de bordes falla, usar el color promedio
+            avg_color = np.mean(pixels, axis=0).astype(int)
+            result = tuple(avg_color)
+            
+            # Actualizar cache
+            self._dominant_color_cache = (image_hash, result)
+            return result
+            
+        except Exception as e:
+            print(f"Error en get_dominant_color: {e}")
+            return (255, 255, 255)  # Blanco por defecto en caso de error
 
     # ---------- METHOD Generation ----------
     def generate_wallpaper(self, target_size, options):
@@ -150,7 +239,7 @@ class LazyPaperLogic:
             target_w, target_h = target_size
             work_image = self.original_image.copy()
 
-            # Eliminar fondo (en caso de ser pedido)
+            # Eliminar fondo
             if options['remove_bg']:
                 removed = self.remove_background(work_image)
                 if removed:
